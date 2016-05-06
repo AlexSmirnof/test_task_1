@@ -40,8 +40,7 @@
 	      User:
             <dsp:select bean="LoyaltyFormHandler.value.user" required="<%=true%>">
               <dsp:droplet name="/loyalty/ListForEach">
-		        <dsp:param name="repositoryName" value="/atg/userprofiling/ProfileAdapterRepository"/>
-                <dsp:param name="itemDescriptorName" value="user"/>
+		        <dsp:param name="itemDescriptorName" value="user"/>
                 <dsp:param name="displayedPropertyName" value="login"/>
                 <dsp:param name="paramValuePropertyName" value="id"/>
                 <dsp:oparam name="output">
