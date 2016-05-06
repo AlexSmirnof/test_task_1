@@ -6,7 +6,8 @@
         <property name="loyaltyTransactions" category="loyalty" data-type="list"
                   component-item-type="loyaltyTransaction"
 		  repository="/loyalty/LoyaltyRepository" 
-		  column-name="loyaltyTransaction_id" />
+		  column-name="loyaltyTransaction_id" 
+		  cascade="delete" />
     </table>
 
     <property name="loyaltyAmount" column-name="loyaltyAmount" data-type="int" default="0" category="loyalty"/>

@@ -5,10 +5,10 @@ commit work;
 
 CREATE TABLE loyalty_loyaltyTransaction (
 	id		VARCHAR(32)	not null,
-	amount		INTEGER		null,
+	amount		INTEGER		not null,
 	description	LONG VARCHAR	null,
-	created		TIMESTAMP	null,
-	profile_id	VARCHAR(32)	null,
+	created		TIMESTAMP	not null,
+	profile_id	VARCHAR(32)	not null,
 	primary key(id)	
 );
 

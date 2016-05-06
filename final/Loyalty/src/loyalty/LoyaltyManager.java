@@ -16,11 +16,15 @@ import java.util.Collection;
 import java.util.Iterator;
 
 public class LoyaltyManager extends atg.nucleus.GenericService {
+	
+  private static final String ITEM_TYPE_NAME = "loyaltyTransaction";	
+  private static final String LIST_PROPERTY_NAME = "loyaltyTransactions";
+  private static final String AMOUNT_PROPERTY_NAME = "loyaltyAmount";
 
-  private TransactionManager transactionManager = null;
-  private Repository loyaltyRepository = null;
-  private Repository userRepository = null;
-  private String rolePath = null;
+  private TransactionManager transactionManager;
+  private Repository loyaltyRepository;
+  private Repository userRepository;
+  private String rolePath;
    
   public void setTransactionManager(TransactionManager transactionManager) {
     this.transactionManager = transactionManager;
@@ -45,7 +49,7 @@ public class LoyaltyManager extends atg.nucleus.GenericService {
   public Repository getUserRepository() {
     return userRepository;
   }
-
+    
   public String getRolePath() {
 	return rolePath;
   }
@@ -54,7 +58,7 @@ public class LoyaltyManager extends atg.nucleus.GenericService {
 	this.rolePath = rolePath;
   }
 
-public void addLoyaltyPointsToUser(String loyaltyTransactionId) throws RepositoryException {
+public void addLoyaltyPointsToUser(String loyaltyTransactionId) throws LoyaltyTransactionException {
   	
   	if (isLoggingDebug()) {
           logDebug("adding loyalty points from" + loyaltyTransactionId + " to user`s transactions list and count amount");
@@ -63,28 +67,21 @@ public void addLoyaltyPointsToUser(String loyaltyTransactionId) throws Repositor
 	MutableRepository mutRepository = (MutableRepository) getUserRepository();
 	Repository loyaltyRepository = getLoyaltyRepository();
 
-	RepositoryItem loyaltyTransaction = loyaltyRepository.getItem(loyaltyTransactionId, "loyaltyTransaction");
-	String userId = (String) loyaltyTransaction.getPropertyValue("user");
+	RepositoryItem loyaltyTransaction;
+	String userId; 
+	try {
+		loyaltyTransaction = loyaltyRepository.getItem(loyaltyTransactionId, ITEM_TYPE_NAME);
+		userId = (String) loyaltyTransaction.getPropertyValue("user");
+	} catch (RepositoryException e) {
+		throw new LoyaltyTransactionException("Exception occured trying to get loyaltyTransactionItem from Repository" + "\nCause: " + e.getMessage());
+	}
  
 	try {
 		TransactionDemarcation td = new TransactionDemarcation();
 		td.begin(getTransactionManager(), TransactionDemarcation.REQUIRED);
 		try {
-			MutableRepositoryItem mutUser = mutRepository.getItemForUpdate(userId, "user");
-			Collection loyaltyTransactionsList = (Collection) mutUser.getPropertyValue("loyaltyTransactions");
-			loyaltyTransactionsList.add(loyaltyTransaction);
-			int amount = 0;
-            if (isLoggingDebug()) {
-                logDebug("count amount for user: " + userId);
-            }
-			for (Iterator iterator = loyaltyTransactionsList.iterator(); iterator.hasNext();) {
-				RepositoryItem userLoyaltyTransaction = (RepositoryItem) iterator.next();
-				int amountValue = (Integer) userLoyaltyTransaction.getPropertyValue("amount");
-				amount += amountValue;				
-			}
-			mutUser.setPropertyValue("loyaltyTransactions", loyaltyTransactionsList);
-			mutUser.setPropertyValue("loyaltyAmount", (Integer) amount);
-			mutRepository.updateItem(mutUser);
+
+			addLoyaltyTransactionToUser(mutRepository, loyaltyTransaction, userId);
 
 		} catch (Exception e){
 			 if (isLoggingError()){
@@ -96,6 +93,7 @@ public void addLoyaltyPointsToUser(String loyaltyTransactionId) throws Repositor
                  if (isLoggingError()) {
                      logError("Unable to set rollback for transaction", se);
                  }
+             throw new LoyaltyTransactionException("Exception occured trying to add loyaltyTransaction" + "\nCause: " + e.getMessage());    
              }
 		} finally {
 			td.end();
@@ -104,7 +102,32 @@ public void addLoyaltyPointsToUser(String loyaltyTransactionId) throws Repositor
         if (isLoggingError()) {
             logError("creating transaction demarcation failed, no loyalty points added", e);
         }
+        throw new LoyaltyTransactionException("Creating transaction demarcation failed, no loyalty points added"+ "\nCause: " + e.getMessage());
 	}
   }
+
+	private void addLoyaltyTransactionToUser(MutableRepository mutRepository, RepositoryItem loyaltyTransaction, String userId) throws Exception {
+		
+		MutableRepositoryItem mutUser = mutRepository.getItemForUpdate(userId, "user");
+		Collection loyaltyTransactionsList = (Collection) mutUser.getPropertyValue(LIST_PROPERTY_NAME);
+		loyaltyTransactionsList.add(loyaltyTransaction);
+		
+		int amount = countPoints(loyaltyTransactionsList, "amount");
+		
+		mutUser.setPropertyValue(LIST_PROPERTY_NAME, loyaltyTransactionsList);
+		mutUser.setPropertyValue(AMOUNT_PROPERTY_NAME, (Integer) amount);
+		mutRepository.updateItem(mutUser);
+		
+	}
+	
+	private int countPoints(Collection list, String propertyName){
+		int result = 0;
+		for (Iterator iterator = list.iterator(); iterator.hasNext();) {
+			RepositoryItem userLoyaltyTransaction = (RepositoryItem) iterator.next();
+			int value = (Integer) userLoyaltyTransaction.getPropertyValue(propertyName);
+			result += value;				
+		}
+		return result;
+	}
 
 }
